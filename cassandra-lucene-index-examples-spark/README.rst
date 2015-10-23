@@ -21,19 +21,23 @@ Requirements
 ------------
 
 To be able to run these examples we have created a Debian-based Docker container with java 7.80.15 maven 3.3.3, Spark
-1.4.1 with Apache Hadoop 2.6, Apache Cassandra 2.1.8 and Stratio’s Cassandra Lucene Index 2.1.8.5.
+1.4.1 with Apache Hadoop 2.6, Apache Cassandra 2.1.9 and Stratio’s Cassandra Lucene Index 2.1.9.0.
 Once the docker container is built know every user can deploy a cluster with one machine acting as Spark Master and
 others as Spark Workers and Cassandra nodes. Here we show you all the steps you have to follow before getting the entire
 cluster working.
 
-Download and compile
-++++++++++++++++++++
 
-Download a fresh version of this project :
+
+Download Lucene index and compile
++++++++++++++++++++++++++++++++++
+
+Download a fresh version of this project with version:
 
 .. code-block:: bash
 
-    git clone https://github.com/Stratio/cassandra-lucene-index.git
+    git clone https://github.com/Stratio/cassandra-lucene-index-examples.git
+
+    cd cassandra-lucene-index-examples/
 
 Compile and package it
 
@@ -56,7 +60,7 @@ Go to Docker containers directory from cassandra lucene index base directory:
 
 .. code-block:: bash
 
-    cd examples/spark/resources/docker
+    cd cassandra-lucene-index-examples-spark/resources/docker
     
 Build the Docker container, this will take a while, please be patient
 

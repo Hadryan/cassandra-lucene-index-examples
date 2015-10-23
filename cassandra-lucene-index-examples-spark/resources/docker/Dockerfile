@@ -38,8 +38,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends git
 
 
 # Configuration: Cassandra Version & Plugin Version
-ENV CASSANDRA_VERSION 2.1.8
-ENV PLUGIN_VERSION $CASSANDRA_VERSION.5
+ENV CASSANDRA_VERSION 2.1.9
+ENV PLUGIN_VERSION $CASSANDRA_VERSION.0
 
 RUN apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 514A2AD631A57A16DD0047EC749D6EEC0353B12C
 
@@ -83,7 +83,7 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 RUN mkdir /home/example
 
-COPY cassandra-lucene-index-plugin-examples-spark-2.1.8.5-SNAPSHOT.jar /home/example/cassandra-lucene-index-plugin-examples-spark.jar
+COPY cassandra-lucene-index-examples-spark-1.0-SNAPSHOT.jar /home/example/cassandra-lucene-index-plugin-examples-spark.jar
 COPY CreateTableAndPopulate.cql /home/example/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
