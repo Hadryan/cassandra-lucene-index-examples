@@ -19,7 +19,7 @@
 package com.stratio.cassandra.examples.spark
 
 import com.datastax.spark.connector._
-import com.stratio.cassandra.lucene.search.SearchBuilders._
+import com.stratio.cassandra.lucene.builder.Builder._
 import org.apache.spark.{SparkConf, SparkContext}
 
 
@@ -30,8 +30,8 @@ object calcMeanByBBOX {
     val TABLE: String = "sensors"
     val INDEX_COLUMN_CONSTANT: String = "lucene"
     var totalMean = 0.0f
-
-    val luceneQuery = search.refresh(true).filter(geoBBox("place", -10.0f, 10.0f, -10.0f, 10.0f)).toJson
+    val t1 = System.currentTimeMillis
+    val luceneQuery = search.refresh(true).filter(geoBBox("place", -10.0f, 10.0f, -10.0f, 10.0f)).build()
 
     val sc : SparkContext = new SparkContext(new SparkConf)
 
@@ -45,8 +45,8 @@ object calcMeanByBBOX {
       val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
       totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
     }
-
-    println("Mean calculated on BBOX query data, mean: "+totalMean.toString+" , numRows: "+ totalNumElems.toString)
+    val t2 = System.currentTimeMillis
+    println("Mean calculated on BBOX query data, mean: "+totalMean.toString+" , numRows: "+ totalNumElems.toString+" took "+(t2-t1)+" msecs")
   }
 }
 

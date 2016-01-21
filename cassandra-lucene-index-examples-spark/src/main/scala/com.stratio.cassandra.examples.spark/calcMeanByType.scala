@@ -19,7 +19,7 @@
 package com.stratio.cassandra.examples.spark
 
 import com.datastax.spark.connector._
-import com.stratio.cassandra.lucene.search.SearchBuilders._
+import com.stratio.cassandra.lucene.builder.Builder._
 import org.apache.spark.{SparkConf, SparkContext}
 
 
@@ -30,8 +30,8 @@ object calcMeanByType {
     val TABLE: String = "sensors"
     val INDEX_COLUMN_CONSTANT: String = "lucene"
     var totalMean = 0.0f
-
-    val luceneQuery: String = search.refresh(true).filter(`match`("sensor_type", "plane")).toJson
+    val t1 = System.currentTimeMillis
+    val luceneQuery: String = search.refresh(true).filter(`match`("sensor_type", "plane")).build()
 
     val sc : SparkContext = new SparkContext(new SparkConf)
 
@@ -44,7 +44,7 @@ object calcMeanByType {
       val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
       totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
     }
-
-    println("Mean calculated on type query data, mean: "+totalMean.toString+", numRows: "+ totalNumElems.toString)
+    val t2 = System.currentTimeMillis
+    println("Mean calculated on type query data, mean: "+totalMean.toString+", numRows: "+ totalNumElems.toString+" took "+(t2-t1)+" msecs")
   }
 }
