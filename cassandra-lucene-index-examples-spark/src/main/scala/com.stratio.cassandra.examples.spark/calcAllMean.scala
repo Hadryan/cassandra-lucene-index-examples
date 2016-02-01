@@ -33,8 +33,8 @@ object calcAllMean {
     val t1 = System.currentTimeMillis
 
 
-
-    val sc : SparkContext = new SparkContext(new SparkConf)
+    val sparkConf = new SparkConf(true).setMaster("local[*]").setAppName("app").set("spark.cassandra.connection.host", "127.0.0.1")
+    val sc : SparkContext = new SparkContext(sparkConf)
     val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value").map[Float]((row)=>row.getFloat("temp_value"))
     val totalNumElems: Long =tempRdd.count()
 

@@ -32,11 +32,12 @@ object calcMeanByBBOX {
     var totalMean = 0.0f
     val t1 = System.currentTimeMillis
     val luceneQuery = search.refresh(true).filter(geoBBox("place", -10.0f, 10.0f, -10.0f, 10.0f)).build()
-
-    val sc : SparkContext = new SparkContext(new SparkConf)
+    val sparkConf = new SparkConf(true).setMaster("local[*]").setAppName("app").set("spark.cassandra.connection.host", "127.0.0.1")
+    val sc : SparkContext = new SparkContext(sparkConf)
 
     val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value")
       .where(INDEX_COLUMN_CONSTANT+ "= ?", luceneQuery).map[Float]((row)=>row.getFloat("temp_value"))
+
 
     val totalNumElems: Long =tempRdd.count()
 

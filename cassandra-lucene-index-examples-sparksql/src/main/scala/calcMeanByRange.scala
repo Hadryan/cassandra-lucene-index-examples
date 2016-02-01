@@ -15,13 +15,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package com.stratio.cassandra.examples.spark
-
-import com.datastax.spark.connector._
-import com.stratio.cassandra.lucene.builder.Builder._
 import org.apache.spark.{SparkConf, SparkContext}
-
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.cassandra.CassandraSQLContext
+import com.stratio.cassandra.lucene.builder.Builder._
 
 object calcMeanByRange {
   def main(args: Array[String]) {
@@ -31,11 +28,15 @@ object calcMeanByRange {
     val INDEX_COLUMN_CONSTANT: String = "lucene"
     var totalMean = 0.0f
     val t1 = System.currentTimeMillis
-    val luceneQuery: String = search.refresh(true).filter(range("temp_value").includeLower(true).lower(30.0f)).build()
+    val luceneQuery: String = "'"+search.refresh(true).filter(range("temp_value").includeLower(true).lower(30.0f)).build()+"'"
     val sparkConf = new SparkConf(true).setMaster("local[*]").setAppName("app").set("spark.cassandra.connection.host", "127.0.0.1")
     val sc : SparkContext = new SparkContext(sparkConf)
+    val cc = new CassandraSQLContext(sc)
+    val rdd: DataFrame = cc.sql(s"SELECT * FROM spark_example_keyspace.sensors WHERE lucene=$luceneQuery")
 
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value").where(INDEX_COLUMN_CONSTANT+ "= ?",luceneQuery).map[Float]((row)=>row.getFloat("temp_value"))
+    rdd.collect().foreach(println)
+
+    /*val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value").where(INDEX_COLUMN_CONSTANT+ "= ?",luceneQuery).map[Float]((row)=>row.getFloat("temp_value"))
 
     val totalNumElems: Long =tempRdd.count()
 
@@ -46,5 +47,6 @@ object calcMeanByRange {
     }
     val t2 = System.currentTimeMillis
     println("Mean calculated on range type data, mean: "+totalMean.toString+" , numRows: "+ totalNumElems.toString+" took "+(t2-t1)+" msecs")
+    */
   }
 }

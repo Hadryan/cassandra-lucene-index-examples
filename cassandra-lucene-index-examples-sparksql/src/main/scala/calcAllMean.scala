@@ -1,3 +1,7 @@
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.cassandra.CassandraSQLContext
+import org.apache.spark.{SparkContext, SparkConf}
+
 /*
  * Licensed to STRATIO (C) under one or more contributor license agreements.
  * See the NOTICE file distributed with this work for additional information
@@ -16,27 +20,24 @@
  * under the License.
  */
 
-package com.stratio.cassandra.examples.spark
 
-import com.datastax.spark.connector._
-import com.stratio.cassandra.lucene.builder.Builder._
-import org.apache.spark.{SparkConf, SparkContext}
-
-
-object calcMeanByRange {
+object calcAllMean {
   def main(args: Array[String]) {
 
     val KEYSPACE: String = "spark_example_keyspace"
     val TABLE: String = "sensors"
-    val INDEX_COLUMN_CONSTANT: String = "lucene"
     var totalMean = 0.0f
     val t1 = System.currentTimeMillis
-    val luceneQuery: String = search.refresh(true).filter(range("temp_value").includeLower(true).lower(30.0f)).build()
+
+
     val sparkConf = new SparkConf(true).setMaster("local[*]").setAppName("app").set("spark.cassandra.connection.host", "127.0.0.1")
     val sc : SparkContext = new SparkContext(sparkConf)
+    val cc = new CassandraSQLContext(sc)
+    val rdd: DataFrame = cc.sql(s"SELECT * FROM spark_example_keyspace.sensors")
 
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value").where(INDEX_COLUMN_CONSTANT+ "= ?",luceneQuery).map[Float]((row)=>row.getFloat("temp_value"))
+    rdd.show()
 
+   /* val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value").map[Float]((row)=>row.getFloat("temp_value"))
     val totalNumElems: Long =tempRdd.count()
 
     if (totalNumElems>0) {
@@ -45,6 +46,8 @@ object calcMeanByRange {
       totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
     }
     val t2 = System.currentTimeMillis
-    println("Mean calculated on range type data, mean: "+totalMean.toString+" , numRows: "+ totalNumElems.toString+" took "+(t2-t1)+" msecs")
+
+    println("Mean calculated on all data, mean: "+totalMean.toString +" numRows: "+ totalNumElems.toString+" took "+(t2-t1)+" msecs")
+    */
   }
 }
