@@ -6,9 +6,7 @@ Here you have some Spark examples over Cassandra Lucene queries
 
 - `Requirements <#requirements>`__
     - `Download and compile <#download-and-compile>`__
-    - `Build docker container <#build-docker-container>`__
     - `Deploy the cluster <#deploy-the-cluster>`__
-    - `Create example environment <#create-example-environment>`__
 - `Examples <#examples>`__
     - `Usual cassandra query <#usual-cassandra-query>`__
     - `Match query <#match-query>`__
@@ -20,13 +18,10 @@ Here you have some Spark examples over Cassandra Lucene queries
 Requirements
 ------------
 
-To be able to run these examples we have created a Debian-based Docker container with java 7.80.15 maven 3.3.3, Spark
-1.4.1 with Apache Hadoop 2.6, Apache Cassandra 2.1.9 and Stratio’s Cassandra Lucene Index 2.1.9.0.
-Once the docker container is built know every user can deploy a cluster with one machine acting as Spark Master and
+To be able to run these examples we have created a docker container based on stratio/cassandra-lucene-index with spark
+Once the docker container is built now every user can deploy a cluster with one machine acting as Spark Master and
 others as Spark Workers and Cassandra nodes. Here we show you all the steps you have to follow before getting the entire
 cluster working.
-
-
 
 Download Lucene index and compile
 +++++++++++++++++++++++++++++++++
@@ -45,28 +40,7 @@ Compile and package it
 
     mvn clean package
 
-
-Build docker container
-++++++++++++++++++++++
-
-If you don't have docker installed then run:
-
-.. code-block:: bash
-
-    sudo apt-get install docker 
-
-
-Go to Docker containers directory from cassandra lucene index base directory:
-
-.. code-block:: bash
-
-    cd cassandra-lucene-index-examples-spark/resources/docker
-    
-Build the Docker container, this will take a while, please be patient
-
-.. code-block:: bash
-    
-    docker build -t stratio/cassandra_spark .
+Docker container is also built in mvn package step.
 
 Deploy the cluster
 ++++++++++++++++++
@@ -106,10 +80,13 @@ simply execute this script
     export SPARK_MASTER_IP=$(docker inspect -f  '{{ .NetworkSettings.IPAddress }}' spark_master) &&
     docker run -d -e SPARK_MASTER=$SPARK_MASTER_IP --name worker1 stratio/cassandra_spark &&
     export CASSANDRA_SEEDS=$(docker inspect -f  '{{ .NetworkSettings.IPAddress }}' worker1) &&
+    export WORKER1_IP=$(docker inspect -f  '{{ .NetworkSettings.IPAddress }}' worker1) &&
     docker run -d -e SPARK_MASTER=$SPARK_MASTER_IP -e CASSANDRA_SEEDS=$CASSANDRA_SEEDS \
     --name worker2 stratio/cassandra_spark &&
-    docker run -d -e SPARK_MASTER=$SPARK_MASTER_IP -e CASSANDRA_SEEDS=$CASSANDRA_SEEDS \
-    --name worker3 stratio/cassandra_spark
+    export WORKER2_IP=$(docker inspect -f  '{{ .NetworkSettings.IPAddress }}' worker2) &&
+    docker run -d -e SPARK_MASTER=$SPARK_MASTER_IP -e CASSANDRA_SEEDS=$CASSANDRA_SEEDS -e POPULATE_TABLE=true \
+    --name worker3 stratio/cassandra_spark &&
+    export WORKER3_IP=$(docker inspect -f  '{{ .NetworkSettings.IPAddress }}' worker3) &&
 
 Now you have a Cassandra/Spark running cluster. You can check the Spark cluster in spark master website
 http://SPARK_MASTER_IP:8080
@@ -122,26 +99,6 @@ or the cassandra ring running in host terminal
 .. code-block:: bash
 
     docker exec -it worker1 nodetool status
-
-Create example environment
-++++++++++++++++++++++++++
-
-When you have your cluster running you can execute the CreateTableAndPopulate.cql, this file with the jar containing
-examples' code is in /home/example in docker containers, so you don't need to copy anything.
- 
-Open a terminal in any of the workers 
-
-.. code-block:: bash
-
-    docker exec -it worker1 /bin/bash 
-
-
-Run CreateTableAndPopulate.cql script located in /home/example directory  by CQL shell
-    
-.. code-block:: bash
-
-    cqlsh -f /home/example/CreateTableAndPopulate.cql $(hostname --ip-address)
-    
 
 Examples 
 --------
@@ -189,21 +146,14 @@ CreateTableAndPopulate.cql
             }'
         };
 
-
 The examples calculates the mean of temp_value based in several CQL lucene queries.
 
+This project source code is prepared to be executed only via spark-submit because it is free of compulsory spark configuration
+parameters that ae provided through spark-submit command line parameters.
 
-Every example can be executed via spark-submit or in a spark-shell. To run in spark-shell run above line to start
-spark-shell in any of the workers
+If you edit source code to add spark basic configuration properties(app name, master url and cassandra connection) this
+could be executed in spark-shell
 
-.. code-block:: bash
-
-     spark-shell --master spark://$SPARK_MASTER:7077 --jars /home/example/cassandra-lucene-index-plugin-examples-spark.jar
-
-
-
-As you can see the spark-shell examples are just like the scala code just taking out the SparkContext contruction
-line because spark-shell builds it while starting
  
 Usual cassandra query
 +++++++++++++++++++++
@@ -216,35 +166,11 @@ From terminal:
 
      spark-submit --class com.stratio.cassandra.examples.spark.calcAllMean \
      --master spark://$SPARK_MASTER:7077 \
-     --deploy-mode client /home/example/cassandra-lucene-index-plugin-examples-spark.jar
-     
+     --name calcAllMean \
+     --deploy-mode client \
+     --conf spark.cassandra.connection.host=172.17.0.3 \
+     /home/example/cassandra-lucene-index-plugin-examples-spark.jar
 
-From spark-shell:
-
-.. code-block:: bash 
-
-    import com.datastax.spark.connector._
-
-    val KEYSPACE: String = "spark_example_keyspace"
-    val TABLE: String = "sensors"
-
-    var totalMean = 0.0f
-
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value")
-
-    val temperatureRdd=tempRdd.map[Float]((row)=>row.getFloat("temp_value"))
-
-    val totalNumElems: Long =temperatureRdd.count()
-
-    if (totalNumElems>0) {
-        val pairTempRdd = temperatureRdd.map(s => (1, s))
-        val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
-        totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
-    }
-    println("Mean calculated on all data, mean: "+totalMean.toString
-            +" numRows: "+ totalNumElems.toString)
-
-     
      
 Match query
 +++++++++++
@@ -257,40 +183,10 @@ From terminal:
 
      spark-submit --class com.stratio.cassandra.examples.spark.calcMeanByType \
      --master spark://$SPARK_MASTER:7077 \
-     --deploy-mode client /home/example/cassandra-lucene-index-plugin-examples-spark.jar
-
-
-
-From spark-shell:
-
-.. code-block:: bash
-
-    import com.datastax.spark.connector._
-    import com.stratio.cassandra.lucene.search.SearchBuilders._
-
-    val KEYSPACE: String = "spark_example_keyspace"
-    val TABLE: String = "sensors"
-    val INDEX_COLUMN_CONSTANT: String = "lucene"
-    var totalMean = 0.0f
-
-    val luceneQuery: String = search.refresh(true).filter(`match`("sensor_type", "plane")).toJson
-
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value")
-    val whereRdd=tempRdd.where(INDEX_COLUMN_CONSTANT+ "= ?",luceneQuery)
-
-    val mapRdd=whereRdd.map[Float]((row)=>row.getFloat("temp_value"))
-
-    val totalNumElems: Long =mapRdd.count()
-
-    if (totalNumElems>0) {
-        val pairTempRdd = mapRdd.map(s => (1, s))
-        val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
-        totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
-    }
-
-    println("Mean calculated on type query data, mean: "+totalMean.toString
-            +", numRows: "+ totalNumElems.toString)
-
+     --name calcMeanByType \
+     --deploy-mode client \
+     --conf spark.cassandra.connection.host=172.17.0.3 \
+     /home/example/cassandra-lucene-index-plugin-examples-spark.jar
 
 Geo-spatial bounding box query
 ++++++++++++++++++++++++++++++
@@ -303,39 +199,10 @@ From terminal:
 
      spark-submit --class com.stratio.cassandra.examples.spark.calcMeanByBBOX \
      --master spark://$SPARK_MASTER:7077 \
-     --deploy-mode client /home/example/cassandra-lucene-index-plugin-examples-spark.jar
-
-
-From spark-shell:
-
-.. code-block:: bash
-
-    import com.datastax.spark.connector._
-    import com.stratio.cassandra.lucene.search.SearchBuilders._
-
-    val KEYSPACE: String = "spark_example_keyspace"
-    val TABLE: String = "sensors"
-    val INDEX_COLUMN_CONSTANT: String = "lucene"
-    var totalMean = 0.0f
-
-    val luceneQuery = search.refresh(true).filter(geoBBox("place", -10.0f, 10.0f, -10.0f, 10.0f)).toJson
-
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value")
-    val whereRdd=tempRdd.where(INDEX_COLUMN_CONSTANT+ "= ?", luceneQuery)
-    val mapRdd=whereRdd.map[Float]((row)=>row.getFloat("temp_value"))
-
-    val totalNumElems: Long =mapRdd.count()
-
-    if (totalNumElems>0) {
-        val pairTempRdd = mapRdd.map(s => (1, s))
-        val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
-        totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
-    }
-
-    println("Mean calculated on BBOX query data, mean: "+totalMean.toString
-            +" , numRows: "+ totalNumElems.toString)
-
-
+     --name calcMeanByBBOX \
+     --deploy-mode client \
+     --conf spark.cassandra.connection.host=172.17.0.3 \
+     /home/example/cassandra-lucene-index-plugin-examples-spark.jar
 
 Geo-spatial distance query
 ++++++++++++++++++++++++++
@@ -348,36 +215,10 @@ From terminal:
 
      spark-submit --class com.stratio.cassandra.examples.spark.calcMeanByGeoDistance \
      --master spark://$SPARK_MASTER:7077 \
-     --deploy-mode client /home/example/cassandra-lucene-index-plugin-examples-spark.jar
-
-From spark-shell:
-
-.. code-block:: bash
-
-    import com.datastax.spark.connector._
-    import com.stratio.cassandra.lucene.search.SearchBuilders._
-
-    val KEYSPACE: String = "spark_example_keyspace"
-    val TABLE: String = "sensors"
-    val INDEX_COLUMN_CONSTANT: String = "lucene"
-    var totalMean = 0.0f
-
-    val luceneQuery = search.refresh(true).filter(geoDistance("place", 0.0f, 0.0f, "100000km")).toJson
-
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value")
-    val whereRdd=tempRdd.where(INDEX_COLUMN_CONSTANT+ "= ?",luceneQuery)
-    val mapRdd=whereRdd.map[Float]((row)=>row.getFloat("temp_value"))
-
-    val totalNumElems: Long =mapRdd.count()
-
-    if (totalNumElems>0) {
-        val pairTempRdd = mapRdd.map(s => (1, s))
-        val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
-        totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
-    }
-
-    println("Mean calculated on GeoDistance data, mean: "+totalMean.toString
-            +" , numRows: "+totalNumElems.toString)
+     --name calcMeanByGeoDistance \
+     --deploy-mode client \
+     --conf spark.cassandra.connection.host=172.17.0.3 \
+     /home/example/cassandra-lucene-index-plugin-examples-spark.jar
 
 Range query
 +++++++++++
@@ -390,35 +231,7 @@ From terminal:
 
      spark-submit --class com.stratio.cassandra.examples.spark.calcMeanByRange \
      --master spark://$SPARK_MASTER:7077 \
-     --deploy-mode client /home/example/cassandra-lucene-index-plugin-examples-spark.jar
-
-From spark-shell:
-
-.. code-block:: bash
-
-    import com.datastax.spark.connector._
-    import com.stratio.cassandra.lucene.search.SearchBuilders._
-
-    val KEYSPACE: String = "spark_example_keyspace"
-    val TABLE: String = "sensors"
-    val INDEX_COLUMN_CONSTANT: String = "lucene"
-    var totalMean = 0.0f
-
-    val luceneQueryAux = range("temp_value").includeLower(true).lower(30.0f)
-    val luceneQuery: String=search.refresh(true).filter(luceneQueryAux).toJson
-
-
-    val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value")
-    val whereRdd=tempRdd.where(INDEX_COLUMN_CONSTANT+ "= ?",luceneQuery)
-    val mapRdd=whereRdd.map[Float]((row)=>row.getFloat("temp_value"))
-
-    val totalNumElems: Long =mapRdd.count()
-
-    if (totalNumElems>0) {
-        val pairTempRdd = mapRdd.map(s => (1, s))
-        val totalTempPairRdd = pairTempRdd.reduceByKey((a, b) => a + b)
-        totalMean = totalTempPairRdd.first()._2 / totalNumElems.toFloat
-    }
-
-    println("Mean calculated on range type data, mean: "+totalMean.toString
-        +" , numRows: "+ totalNumElems.toString)
+     --name calcMeanByRange \
+     --deploy-mode client \
+     --conf spark.cassandra.connection.host=172.17.0.3 \
+     /home/example/cassandra-lucene-index-plugin-examples-spark.jar

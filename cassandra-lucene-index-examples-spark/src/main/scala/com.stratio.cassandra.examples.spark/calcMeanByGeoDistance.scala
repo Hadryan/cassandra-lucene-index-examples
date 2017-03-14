@@ -19,7 +19,7 @@
 package com.stratio.cassandra.examples.spark
 
 import com.datastax.spark.connector._
-import com.stratio.cassandra.lucene.search.SearchBuilders._
+import com.stratio.cassandra.lucene.builder.Builder._
 import org.apache.spark.{SparkConf, SparkContext}
 
 
@@ -31,7 +31,7 @@ object calcMeanByGeoDistance {
     val INDEX_COLUMN_CONSTANT: String = "lucene"
     var totalMean = 0.0f
 
-    val luceneQuery = search.refresh(true).filter(geoDistance("place", 0.0f, 0.0f, "100000km")).toJson
+    val luceneQuery = search.refresh(true).filter(geoDistance("place", 0.0f, 0.0f, "100000km")).build()
 
     val sc : SparkContext = new SparkContext(new SparkConf)
 

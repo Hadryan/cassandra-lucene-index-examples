@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-echo "Executing docker-entrypoint.sh"
+echo "Executing docker-entrypointeeeee.sh"
 # first arg is `-f` or `--some-option`
 if [ "${1:0:1}" = '-' ]; then
 	echo "First if"
@@ -56,9 +56,17 @@ if [ "$SPARK_MASTER" ]; then
 
 	echo "Starting cassandra"
 	#start cassandra 1
-	nohup cassandra
+	set +e
+	nohup /opt/sds/cassandra/bin/cassandra &
+	if [ "$POPULATE_TABLE" ]; then
+	    /opt/sds/cassandra/bin/cqlsh $CASSANDRA_LISTEN_ADDRESS -f /home/example/CreateTableAndPopulate.cql
+        while [ $? -ne 0 ]; do
+            /opt/sds/cassandra/bin/cqlsh $CASSANDRA_LISTEN_ADDRESS -f /home/example/CreateTableAndPopulate.cql
+        done
+    fi
 
 fi
+set -e
 echo "After Starting cassandra"
 #if env variable SPARK_MASTER set, start spark as slave connecting to that master 
 if [ "$SPARK_MASTER" ]; then

@@ -29,9 +29,8 @@ object calcAllMean {
     val TABLE: String = "sensors"
 
     var totalMean = 0.0f
-
     val sc : SparkContext = new SparkContext(new SparkConf)
-    sc.addJar("/home/example/spark-2.1.8.4-SNAPSHOT.jar")
+
     val tempRdd=sc.cassandraTable(KEYSPACE, TABLE).select("temp_value").map[Float]((row)=>row.getFloat("temp_value"))
 
     val totalNumElems: Long =tempRdd.count()
